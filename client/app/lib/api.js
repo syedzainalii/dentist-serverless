@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 /**
  * Get authentication token from localStorage
@@ -14,44 +14,46 @@ function getToken() {
 /**
  * Make authenticated API request (JSON)
  */
-async function apiRequest(endpoint, options = {}) {
-  const token = getToken();
+export const apiRequest = async (endpoint, options = {}) => {
+  // 1. Ensure the endpoint starts with /
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${API_URL}${path}`, {
       ...options,
       headers,
+      // Important: include this if you are using sessions/cookies
+      credentials: options.credentials || 'include', 
     });
 
+    // Handle HTTP errors (4xx, 5xx)
     if (!response.ok) {
-      let errorMessage = 'API request failed';
+      let errorMessage = `Error: ${response.status}`;
       try {
         const errorData = await response.json();
         errorMessage = errorData.message || errorMessage;
       } catch {
-        errorMessage = response.statusText || `HTTP ${response.status}`;
+        errorMessage = response.statusText || errorMessage;
       }
       throw new Error(errorMessage);
     }
 
     return await response.json();
+    
   } catch (error) {
-    if (error instanceof TypeError) {
-      throw new Error(
-        'Network error: Unable to connect to server. Please check if the backend is running.'
-      );
+    // If the error is 'Failed to fetch', it's usually a CORS or URL issue
+    if (error.message === 'Failed to fetch') {
+      console.error("Connection Error:", error);
+      throw new Error(`Cannot connect to Backend at ${API_URL}. Check your internet or CORS settings.`);
     }
     throw error;
   }
-}
+};
 
 /**
  * Make authenticated API request with FormData (file uploads)
