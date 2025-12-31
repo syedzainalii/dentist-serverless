@@ -87,6 +87,7 @@ def handle_options():
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
+    
 # ============================================================================
 # DATABASE MODELS
 # ============================================================================

@@ -304,7 +304,7 @@ export default function Home() {
                           Price
                         </p>
                         <p className="text-2xl font-bold text-blue-600">
-                          ₹{service.price?.toFixed ? service.price.toFixed(0) : service.price}
+                          Rs{service.price?.toFixed ? service.price.toFixed(0) : service.price}
                         </p>
                       </div>
                       {service.duration_minutes && (
@@ -369,7 +369,7 @@ export default function Home() {
               <div className="mt-2 text-sm text-blue-100">Years Experience</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-white">5000+</div>
+              <div className="text-4xl font-bold text-white">500+</div>
               <div className="mt-2 text-sm text-blue-100">Happy Patients</div>
             </div>
             <div className="text-center">

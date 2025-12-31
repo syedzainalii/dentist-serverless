@@ -63,7 +63,7 @@ export default function AdminDashboardPage() {
             fetch(`${API_BASE}/api/dashboard/summary`, { headers }),
             fetch(`${API_BASE}/api/dashboard/charts?range=30d`, { headers }),
             fetch(`${API_BASE}/api/bookings`, { headers }),
-            fetch(`${API_BASE}/api/services?active=false`),
+            fetch(`${API_BASE}/api/services`, { headers }),
           ]);
 
         if (summaryRes.status === 401) {
@@ -198,7 +198,7 @@ export default function AdminDashboardPage() {
           ["Completed", summary.bookings.completed],
           [
             "Revenue",
-            `₹${summary.revenue.total?.toFixed?.(0) ?? 0}`,
+            `Rs${summary.revenue.total?.toFixed?.(0) ?? 0}`,
           ],
         ].map(([title, value]) => (
           <Card key={title}>
