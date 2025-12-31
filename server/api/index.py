@@ -36,39 +36,37 @@ def handle_options():
 # ============================================================================
 
 
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://dentist-serverless.vercel.app" # EXACTLY as it appears in browser
+]
+
+# Apply CORS to the app immediately after defining the app object
+CORS(app, 
+     origins=ALLOWED_ORIGINS,
+     supports_credentials=True,
+     allow_headers=["Content-Type", "Authorization"],
+     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+
+# ============================================================================
+# 2. APP SETTINGS & DATABASE
+# ============================================================================
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-super-secret-local-key')
 
-# --- DATABASE CONNECTION FIX ---
-# This pulls the Vercel Postgres URL from environment variables.
-# It also fixes the 'postgres://' vs 'postgresql://' requirement for SQLAlchemy.
+# Database logic (Keep your existing logic, it is correct)
 raw_db_url = os.environ.get('POSTGRES_URL')
 if raw_db_url:
-    if raw_db_url.startswith("postgres://"):
-        app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url.replace("postgres://", "postgresql://", 1)
-    else:
-        app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url
+    app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url.replace("postgres://", "postgresql://", 1)
 else:
-    # Fallback for local development
     app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:postgres@localhost:5432/dentist_db'
 
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# --- MAIL SETTINGS ---
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-mail_port_env = os.environ.get('MAIL_PORT')
-app.config['MAIL_PORT'] = int(mail_port_env) if mail_port_env and mail_port_env.strip() else 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
-
-# --- FILE UPLOAD FIX (VERCEL READ-ONLY ERROR) ---
-# Vercel only allows writing to the /tmp directory in the serverless environment.
+# ============================================================================
+# 3. FILE SYSTEM FIX (Vercel Read-Only)
+# ============================================================================
+# Use /tmp for all write operations on Vercel
 UPLOAD_FOLDER = '/tmp/uploads/content'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-
-# Create folders in /tmp instead of the app root
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('/tmp/uploads/cars', exist_ok=True)
 
@@ -78,6 +76,17 @@ def allowed_file(filename):
 db = SQLAlchemy(app)
 mail = Mail(app)
 
+@app.before_request
+def handle_options():
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin')
+        if origin in ALLOWED_ORIGINS:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 # ============================================================================
 # DATABASE MODELS
 # ============================================================================
