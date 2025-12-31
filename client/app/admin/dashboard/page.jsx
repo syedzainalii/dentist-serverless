@@ -63,7 +63,7 @@ export default function AdminDashboardPage() {
             fetch(`${API_BASE}/api/dashboard/summary`, { headers }),
             fetch(`${API_BASE}/api/dashboard/charts?range=30d`, { headers }),
             fetch(`${API_BASE}/api/bookings`, { headers }),
-            fetch(`${API_BASE}/api/services`, { headers }),
+            fetch(`${API_BASE}/api/services`, { headers }), // FIXED: Removed ?active=false
           ]);
 
         if (summaryRes.status === 401) {
@@ -82,7 +82,8 @@ export default function AdminDashboardPage() {
         setCharts(chartsData.charts ?? null);
         setBookings(bookingsData.bookings ?? []);
         setServices(servicesData.services ?? []);
-      } catch {
+      } catch (err) {
+        console.error("Dashboard load error:", err);
         setError("Failed to load dashboard data");
       } finally {
         setLoading(false);
@@ -151,6 +152,54 @@ export default function AdminDashboardPage() {
     });
   }
 
+  async function handleToggleService(serviceId, currentStatus) {
+    const token = getToken();
+    if (!token) return;
+
+    const res = await fetch(`${API_BASE}/api/services/${serviceId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        is_active: !currentStatus,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.message || "Failed to update service");
+      return;
+    }
+
+    setServices((prev) =>
+      prev.map((s) => (s.id === serviceId ? data.service : s))
+    );
+  }
+
+  async function handleDeleteService(serviceId) {
+    if (!confirm("Are you sure you want to delete this service?")) return;
+
+    const token = getToken();
+    if (!token) return;
+
+    const res = await fetch(`${API_BASE}/api/services/${serviceId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.message || "Failed to delete service");
+      return;
+    }
+
+    setServices((prev) => prev.filter((s) => s.id !== serviceId));
+  }
+
   if (loading) {
     return (
       <div className="flex h-[70vh] items-center justify-center text-sm text-gray-500">
@@ -198,7 +247,7 @@ export default function AdminDashboardPage() {
           ["Completed", summary.bookings.completed],
           [
             "Revenue",
-            `Rs${summary.revenue.total?.toFixed?.(0) ?? 0}`,
+            `Rs ${summary.revenue.total?.toFixed?.(0) ?? 0}`,
           ],
         ].map(([title, value]) => (
           <Card key={title}>
@@ -269,11 +318,11 @@ export default function AdminDashboardPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-gray-50 text-gray-600">
               <tr>
-                <th className="px-4 py-3">Patient</th>
-                <th>Service</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Status</th>
+                <th className="px-4 py-3 text-left">Patient</th>
+                <th className="text-left">Service</th>
+                <th className="text-left">Date</th>
+                <th className="text-left">Time</th>
+                <th className="text-left">Status</th>
                 <th />
               </tr>
             </thead>
@@ -357,32 +406,66 @@ export default function AdminDashboardPage() {
       {/* Services */}
       <Card>
         <CardHeader>
-          <CardTitle>Services</CardTitle>
-          <CardDescription>Add or update services</CardDescription>
+          <CardTitle>Services Management</CardTitle>
+          <CardDescription>
+            Add, edit or deactivate services that appear on the public site
+          </CardDescription>
         </CardHeader>
 
         <div className="space-y-4 p-4">
-          <ul className="space-y-1 text-sm">
+          <div className="space-y-2">
             {services.map((s) => (
-              <li
+              <div
                 key={s.id}
-                className="flex justify-between"
+                className="flex items-center justify-between rounded-lg border p-3"
               >
-                <span>{s.name}</span>
-                <span className="text-gray-500">
-                  ₹{s.price}
-                </span>
-              </li>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{s.name}</span>
+                    {!s.is_active && (
+                      <span className="rounded bg-gray-200 px-2 py-0.5 text-xs text-gray-600">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  {s.description && (
+                    <p className="text-sm text-gray-600">{s.description}</p>
+                  )}
+                  <div className="mt-1 flex gap-3 text-sm text-gray-500">
+                    <span>₹{s.price}</span>
+                    {s.duration_minutes && (
+                      <span>{s.duration_minutes} min</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleToggleService(s.id, s.is_active)}
+                  >
+                    {s.is_active ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDeleteService(s.id)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
 
           <form
             onSubmit={handleCreateService}
-            className="grid gap-2 pt-4"
+            className="grid gap-3 border-t pt-4"
           >
-            <Label>Add Service</Label>
+            <Label className="text-base font-semibold">Add New Service</Label>
             <Input
-              placeholder="Name"
+              placeholder="Service Name (e.g., Teeth Cleaning)"
               value={newService.name}
               onChange={(e) =>
                 setNewService((p) => ({
@@ -393,7 +476,7 @@ export default function AdminDashboardPage() {
               required
             />
             <Input
-              placeholder="Description"
+              placeholder="Description (optional)"
               value={newService.description}
               onChange={(e) =>
                 setNewService((p) => ({
@@ -404,8 +487,9 @@ export default function AdminDashboardPage() {
             />
             <div className="grid grid-cols-2 gap-2">
               <Input
-                placeholder="Price"
+                placeholder="Price (₹)"
                 type="number"
+                step="0.01"
                 value={newService.price}
                 onChange={(e) =>
                   setNewService((p) => ({
@@ -416,7 +500,7 @@ export default function AdminDashboardPage() {
                 required
               />
               <Input
-                placeholder="Duration (min)"
+                placeholder="Duration (minutes)"
                 type="number"
                 value={newService.duration_minutes}
                 onChange={(e) =>
@@ -427,7 +511,9 @@ export default function AdminDashboardPage() {
                 }
               />
             </div>
-            <Button type="submit">Add service</Button>
+            <Button type="submit" className="w-full">
+              Add Service
+            </Button>
           </form>
         </div>
       </Card>
