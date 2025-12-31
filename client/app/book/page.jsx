@@ -205,7 +205,7 @@ export default function BookPage() {
                   <select id="service" className="mt-2 flex h-12 w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 hover:border-blue-300 shadow-sm" value={form.service_id} onChange={handleChange("service_id")} disabled={loadingServices} required>
                     <option value="">{loadingServices ? "Loading services..." : "Select a service"}</option>
                     {services.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}{s.price ? ` - ₹${s.price.toFixed ? s.price.toFixed(0) : s.price}` : ""}</option>
+                      <option key={s.id} value={s.id}>{s.name}{s.price ? ` - Rs${s.price.toFixed ? s.price.toFixed(0) : s.price}` : ""}</option>
                     ))}
                   </select>
                 </div>

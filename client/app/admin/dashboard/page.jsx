@@ -253,7 +253,7 @@ export default function AdminDashboardPage() {
     },
     {
       title: "Total Revenue",
-      value: `₹${summary.revenue.total?.toFixed?.(0) ?? 0}`,
+      value: `Rs{summary.revenue.total?.toFixed?.(0) ?? 0}`,
       icon: DollarSign,
       color: "purple",
     },
@@ -570,7 +570,7 @@ export default function AdminDashboardPage() {
                       )}
                       <div className="mt-2 flex gap-4 text-sm">
                         <span className="font-medium text-green-600">
-                          ₹{s.price}
+                          Rs{s.price}
                         </span>
                         {s.duration_minutes && (
                           <span className="flex items-center gap-1 text-gray-500">
@@ -638,7 +638,7 @@ export default function AdminDashboardPage() {
                   
                   <div className="grid grid-cols-2 gap-3">
                     <Input
-                      placeholder="Price (₹)"
+                      placeholder="Price (Rs)"
                       type="number"
                       step="0.01"
                       value={newService.price}
