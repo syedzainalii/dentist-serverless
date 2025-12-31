@@ -23,7 +23,7 @@ import {
   Bar,
 } from "recharts";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://dentist-serverless-tw1a.vercel.app";
+const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://dentist-serverless-tw1a.vercel.app";
 
 function getToken() {
   if (typeof window === "undefined") return null;
