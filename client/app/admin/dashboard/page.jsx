@@ -253,7 +253,7 @@ export default function AdminDashboardPage() {
     },
     {
       title: "Total Revenue",
-      value: `Rs{summary.revenue.total?.toFixed?.(0) ?? 0}`,
+      value: `Rs${summary.revenue.total?.toFixed?.(0) ?? 0}`,
       icon: DollarSign,
       color: "purple",
     },

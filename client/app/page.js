@@ -330,7 +330,7 @@ export default function Home() {
                           Price
                         </p>
                         <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-                          Rs{service.price?.toFixed ? service.price.toFixed(0) : service.price}
+                          Rs {service.price?.toFixed ? service.price.toFixed(0) : service.price}
                         </p>
                       </div>
                       {service.duration_minutes && (
