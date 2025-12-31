@@ -3,20 +3,20 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "server/app.py"
+      "destination": "server/api/index.py"
     },
     {
       "source": "/(.*)",
-      "destination": "client/dentist/$1"
+      "destination": "client/$1"
     }
   ],
   "builds": [
     {
-      "src": "server/app.py",
+      "src": "server/api/index.py",
       "use": "@vercel/python"
     },
     {
-      "src": "client/dentist/package.json",
+      "src": "client/package.json",
       "use": "@vercel/next"
     }
   ]
