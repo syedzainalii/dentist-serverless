@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-  CardContent,
 } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
@@ -303,7 +302,7 @@ export default function AdminDashboardPage() {
             const Icon = stat.icon;
             return (
               <Card key={stat.title} className="border-0 shadow-sm">
-                <CardContent className="p-6">
+                <div className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">
@@ -317,7 +316,7 @@ export default function AdminDashboardPage() {
                       <Icon className="h-6 w-6" />
                     </div>
                   </div>
-                </CardContent>
+                </div>
               </Card>
             );
           })}
@@ -333,7 +332,7 @@ export default function AdminDashboardPage() {
               </div>
               <CardDescription>Last 30 days performance</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <div className="pt-6 px-6 pb-6">
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={charts?.bookings_over_time ?? []}>
@@ -366,7 +365,7 @@ export default function AdminDashboardPage() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
+            </div>
           </Card>
 
           <Card className="border-0 shadow-sm">
@@ -377,7 +376,7 @@ export default function AdminDashboardPage() {
               </div>
               <CardDescription>By service type</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
+            <div className="pt-6 px-6 pb-6">
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={charts?.revenue_by_service ?? []}>
@@ -406,7 +405,7 @@ export default function AdminDashboardPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
+            </div>
           </Card>
         </div>
 
@@ -421,7 +420,7 @@ export default function AdminDashboardPage() {
               Manage appointment status and time slots
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
+          <div className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -530,7 +529,7 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
         {/* Services Management */}
@@ -544,7 +543,7 @@ export default function AdminDashboardPage() {
               Add, edit or deactivate services that appear on the public site
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
+          <div className="p-6">
             <div className="space-y-4">
               {/* Services List */}
               <div className="space-y-3">
@@ -673,7 +672,7 @@ export default function AdminDashboardPage() {
                 </form>
               </div>
             </div>
-          </CardContent>
+          </div>
         </Card>
       </div>
     </div>
