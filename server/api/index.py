@@ -30,9 +30,6 @@ def handle_options():
         headers['Access-Control-Allow-Credentials'] = 'true'
         return response
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
 
 # ============================================================================
 # CONFIGURATION
@@ -87,14 +84,13 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
 
 # File Upload Configuration
-UPLOAD_FOLDER = 'uploads/content'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
+UPLOAD_FOLDER = '/tmp/uploads/content'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
+# Create folders in /tmp instead of the root
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs('uploads/cars', exist_ok=True)
+os.makedirs('/tmp/uploads/cars', exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
