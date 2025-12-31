@@ -62,7 +62,7 @@ def handle_options():
         headers['Access-Control-Allow-Credentials'] = 'true'
         return response
 
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-super-secret-local-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:postgres@localhost:5432/dentist_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
