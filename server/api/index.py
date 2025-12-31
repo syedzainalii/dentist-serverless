@@ -34,15 +34,18 @@ def handle_options():
 # CONFIGURATION
 # ============================================================================
 
-# 1. Define the list FIRST so the code below can see it
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# 1. DEFINE THIS FIRST (The list must exist before it is used below)
 ALLOWED_ORIGINS = [
     "http://localhost:3000", 
     "http://127.0.0.1:3000", 
     "https://dentist-serverless.vercel.app"
 ]
 
-# 2. CORS Configuration
-# Note: We use ALLOWED_ORIGINS here
+# 2. NOW APPLY CORS
 CORS(app, 
      origins=ALLOWED_ORIGINS,
      supports_credentials=True,
@@ -50,7 +53,7 @@ CORS(app,
      methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
      expose_headers=["Content-Type", "Authorization"])
 
-# 3. Enable manual OPTIONS response for strict browsers
+# 3. ENABLE AUTOMATIC OPTIONS RESPONSE
 @app.before_request
 def handle_options():
     if request.method == 'OPTIONS':
