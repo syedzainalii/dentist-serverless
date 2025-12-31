@@ -3,8 +3,6 @@
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  /* This tells Tailwind v4 to use the .dark class for dark mode */
-  --variant-dark: .dark &; 
 }
 
 body {
