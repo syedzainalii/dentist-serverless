@@ -35,46 +35,25 @@ def handle_options():
 # CONFIGURATION
 # ============================================================================
 
-# 1. DEFINE THIS FIRST (The list must exist before it is used below)
-ALLOWED_ORIGINS = [
-    "http://localhost:3000", 
-    "http://127.0.0.1:3000", 
-    "https://dentist-serverless.vercel.app"
-]
-
-# 2. NOW APPLY CORS
-CORS(app, 
-     origins=ALLOWED_ORIGINS,
-     supports_credentials=True,
-     allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-     expose_headers=["Content-Type", "Authorization"])
-
-# 3. ENABLE AUTOMATIC OPTIONS RESPONSE
-@app.before_request
-def handle_options():
-    if request.method == 'OPTIONS':
-        response = app.make_default_options_response()
-        headers = response.headers
-        origin = request.headers.get('Origin')
-        
-        # Check if the incoming origin is in our allowed list
-        if origin in ALLOWED_ORIGINS:
-            headers['Access-Control-Allow-Origin'] = origin
-        else:
-            # Fallback to the first allowed origin
-            headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[0]
-            
-        headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
-        headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'
-        headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-super-secret-local-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:postgres@localhost:5432/dentist_db'
+
+# --- DATABASE CONNECTION FIX ---
+# This pulls the Vercel Postgres URL from environment variables.
+# It also fixes the 'postgres://' vs 'postgresql://' requirement for SQLAlchemy.
+raw_db_url = os.environ.get('POSTGRES_URL')
+if raw_db_url:
+    if raw_db_url.startswith("postgres://"):
+        app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url.replace("postgres://", "postgresql://", 1)
+    else:
+        app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url
+else:
+    # Fallback for local development
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:postgres@localhost:5432/dentist_db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-
+# --- MAIL SETTINGS ---
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
 mail_port_env = os.environ.get('MAIL_PORT')
 app.config['MAIL_PORT'] = int(mail_port_env) if mail_port_env and mail_port_env.strip() else 587
@@ -83,12 +62,13 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
 
-# File Upload Configuration
+# --- FILE UPLOAD FIX (VERCEL READ-ONLY ERROR) ---
+# Vercel only allows writing to the /tmp directory in the serverless environment.
 UPLOAD_FOLDER = '/tmp/uploads/content'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# Create folders in /tmp instead of the root
+# Create folders in /tmp instead of the app root
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs('/tmp/uploads/cars', exist_ok=True)
 
