@@ -36,7 +36,7 @@ def handle_options():
 
 # CORS Configuration
 CORS(app, 
-     origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+     origins=ALLOWED_ORIGINS,
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
      methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -48,12 +48,14 @@ def handle_options():
     if request.method == 'OPTIONS':
         response = app.make_default_options_response()
         headers = response.headers
-        origin = request.headers.get('Origin', '*')
+        origin = request.headers.get('Origin')
         
-        if origin in ['http://localhost:3000', 'http://127.0.0.1:3000']:
+        # Check if the incoming origin is in our allowed list
+        if origin in ALLOWED_ORIGINS:
             headers['Access-Control-Allow-Origin'] = origin
         else:
-            headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
+            # Fallback or default
+            headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGINS[0]
             
         headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
         headers['Access-Control-Allow-Headers'] = 'Authorization, Content-Type'

@@ -2,22 +2,14 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "server/api/index.py"
-    },
-    {
       "source": "/(.*)",
-      "destination": "client/$1"
+      "destination": "api/index.py"
     }
   ],
   "builds": [
     {
-      "src": "server/api/index.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
-    },
-    {
-      "src": "client/package.json",
-      "use": "@vercel/next"
     }
   ]
 }
