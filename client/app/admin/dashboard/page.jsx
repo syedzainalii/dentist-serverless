@@ -32,10 +32,13 @@ import {
   Plus,
   LogOut,
   TrendingUp,
-  Activity
+  Activity,
+  Eye,
+  EyeOff,
+  RefreshCw
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://dentist-serverless-tw1a.vercel.app";
 
 function getToken() {
   if (typeof window === "undefined") return null;
@@ -50,6 +53,7 @@ export default function AdminDashboardPage() {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const [newService, setNewService] = useState({
     name: "",
@@ -104,28 +108,88 @@ export default function AdminDashboardPage() {
     load();
   }, [router]);
 
+  const toggleTimeFormat = (bookingId, currentTimeSlot) => {
+    if (!currentTimeSlot) return;
+    
+    let newTimeSlot = currentTimeSlot;
+    
+    // Check if it contains AM/PM
+    if (currentTimeSlot.includes("AM") || currentTimeSlot.includes("PM")) {
+      // Convert to 24-hour format
+      const match = currentTimeSlot.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (match) {
+        let [, hours, minutes, period] = match;
+        hours = parseInt(hours);
+        if (period.toUpperCase() === "PM" && hours !== 12) hours += 12;
+        if (period.toUpperCase() === "AM" && hours === 12) hours = 0;
+        newTimeSlot = `${hours.toString().padStart(2, '0')}:${minutes}`;
+      }
+    } else {
+      // Convert to 12-hour format with AM/PM
+      const match = currentTimeSlot.match(/(\d+):(\d+)/);
+      if (match) {
+        let [, hours, minutes] = match;
+        hours = parseInt(hours);
+        const period = hours >= 12 ? "PM" : "AM";
+        if (hours > 12) hours -= 12;
+        if (hours === 0) hours = 12;
+        newTimeSlot = `${hours}:${minutes} ${period}`;
+      }
+    }
+    
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === bookingId
+          ? { ...b, time_slot: newTimeSlot }
+          : b
+      )
+    );
+  };
+
   async function handleStatusChange(id, status, time_slot) {
     const token = getToken();
     if (!token) return;
 
-    const res = await fetch(`${API_BASE}/api/bookings/${id}/status`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ status, time_slot }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      alert(data.message || "Failed to update booking");
+    // Validate time slot for confirmed bookings
+    if (status === 'confirmed' && (!time_slot || time_slot.trim() === '')) {
+      alert('Please set a time slot before confirming the booking');
       return;
     }
 
-    setBookings((prev) =>
-      prev.map((b) => (b.id === id ? data.booking : b))
-    );
+    try {
+      const res = await fetch(`${API_BASE}/api/bookings/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status, time_slot }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to update booking");
+        return;
+      }
+
+      setBookings((prev) =>
+        prev.map((b) => (b.id === id ? data.booking : b))
+      );
+
+      // Show success message based on status
+      if (status === 'confirmed') {
+        alert('✅ Booking confirmed! Confirmation email sent to patient.');
+      } else if (status === 'cancelled') {
+        alert('❌ Booking cancelled. Cancellation email sent to patient.');
+      } else if (status === 'completed') {
+        alert('✔️ Booking marked as completed (no email sent).');
+      } else if (status === 'pending') {
+        alert('⏳ Booking status updated to pending.');
+      }
+    } catch (err) {
+      console.error('Error updating booking:', err);
+      alert('Failed to update booking. Please try again.');
+    }
   }
 
   async function handleCreateService(e) {
@@ -161,6 +225,7 @@ export default function AdminDashboardPage() {
       price: "",
       duration_minutes: "",
     });
+    alert('✅ Service created successfully!');
   }
 
   async function handleToggleService(serviceId, currentStatus) {
@@ -209,6 +274,7 @@ export default function AdminDashboardPage() {
     }
 
     setServices((prev) => prev.filter((s) => s.id !== serviceId));
+    alert('✅ Service deleted successfully!');
   }
 
   if (loading) {
@@ -253,7 +319,7 @@ export default function AdminDashboardPage() {
     },
     {
       title: "Total Revenue",
-      value: `Rs${summary.revenue.total?.toFixed?.(0) ?? 0}`,
+      value: `₹${summary.revenue.total?.toFixed?.(0) ?? 0}`,
       icon: DollarSign,
       color: "purple",
     },
@@ -265,6 +331,14 @@ export default function AdminDashboardPage() {
     green: "bg-green-50 text-green-600",
     purple: "bg-purple-50 text-purple-600",
   };
+
+  // Filter bookings based on showCompleted toggle
+  const filteredBookings = showCompleted 
+    ? bookings.filter(b => b.status === 'completed')
+    : bookings.filter(b => b.status !== 'completed');
+
+  const activeBookingsCount = bookings.filter(b => b.status !== 'completed').length;
+  const completedBookingsCount = bookings.filter(b => b.status === 'completed').length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,7 +356,7 @@ export default function AdminDashboardPage() {
             </div>
             <Button
               variant="outline"
-              className="gap-2"
+              className="gap-2 cursor-pointer hover:bg-gray-100 transition-colors"
               onClick={() => {
                 localStorage.removeItem("token");
                 router.push("/admin/login");
@@ -301,7 +375,7 @@ export default function AdminDashboardPage() {
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
-              <Card key={stat.title} className="border-0 shadow-sm">
+              <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                 <div className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -412,13 +486,39 @@ export default function AdminDashboardPage() {
         {/* Bookings Table */}
         <Card className="border-0 shadow-sm">
           <CardHeader className="border-b">
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg">Recent Bookings</CardTitle>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  <CardTitle className="text-lg">
+                    {showCompleted ? 'Completed Bookings' : 'Active Bookings'}
+                  </CardTitle>
+                </div>
+                <CardDescription>
+                  {showCompleted 
+                    ? `Viewing ${completedBookingsCount} completed appointment${completedBookingsCount !== 1 ? 's' : ''}`
+                    : `Managing ${activeBookingsCount} active appointment${activeBookingsCount !== 1 ? 's' : ''}`
+                  }
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                className="gap-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => setShowCompleted(!showCompleted)}
+              >
+                {showCompleted ? (
+                  <>
+                    <EyeOff className="h-4 w-4" />
+                    Show Active
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4" />
+                    Show Completed ({completedBookingsCount})
+                  </>
+                )}
+              </Button>
             </div>
-            <CardDescription>
-              Manage appointment status and time slots
-            </CardDescription>
           </CardHeader>
           <div className="p-0">
             <div className="overflow-x-auto">
@@ -444,88 +544,109 @@ export default function AdminDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
-                  {bookings.map((b) => (
-                    <tr key={b.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
-                            {b.customer_name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {b.customer_name}
-                            </div>
-                            <div className="flex items-center gap-1 text-xs text-gray-500">
-                              <Mail className="h-3 w-3" />
-                              {b.customer_email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {b.service_name}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {b.preferred_date}
-                      </td>
-                      <td className="px-6 py-4">
-                        <Input
-                          className="h-9 w-32 border-gray-200"
-                          placeholder="Set time"
-                          value={b.time_slot || ""}
-                          onChange={(e) =>
-                            setBookings((prev) =>
-                              prev.map((row) =>
-                                row.id === b.id
-                                  ? {
-                                      ...row,
-                                      time_slot: e.target.value,
-                                    }
-                                  : row
-                              )
-                            )
-                          }
-                        />
-                      </td>
-                      <td className="px-6 py-4">
-                        <select
-                          className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={b.status}
-                          onChange={(e) =>
-                            setBookings((prev) =>
-                              prev.map((row) =>
-                                row.id === b.id
-                                  ? {
-                                      ...row,
-                                      status: e.target.value,
-                                    }
-                                  : row
-                              )
-                            )
-                          }
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="completed">Completed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Button
-                          size="sm"
-                          onClick={() =>
-                            handleStatusChange(
-                              b.id,
-                              b.status,
-                              b.time_slot
-                            )
-                          }
-                        >
-                          Save
-                        </Button>
+                  {filteredBookings.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                        {showCompleted 
+                          ? 'No completed bookings yet'
+                          : 'No active bookings to display'
+                        }
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredBookings.map((b) => (
+                      <tr key={b.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
+                              {b.customer_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {b.customer_name}
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Mail className="h-3 w-3" />
+                                {b.customer_email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {b.service_name}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {b.preferred_date}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              className="h-9 w-32 border-gray-200"
+                              placeholder="Set time"
+                              value={b.time_slot || ""}
+                              onChange={(e) =>
+                                setBookings((prev) =>
+                                  prev.map((row) =>
+                                    row.id === b.id
+                                      ? {
+                                          ...row,
+                                          time_slot: e.target.value,
+                                        }
+                                      : row
+                                  )
+                                )
+                              }
+                            />
+                            <button
+                              onClick={() => toggleTimeFormat(b.id, b.time_slot)}
+                              className="p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                              title="Toggle AM/PM format"
+                            >
+                              <RefreshCw className="h-4 w-4 text-gray-600" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <select
+                            className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
+                            value={b.status}
+                            onChange={(e) =>
+                              setBookings((prev) =>
+                                prev.map((row) =>
+                                  row.id === b.id
+                                    ? {
+                                        ...row,
+                                        status: e.target.value,
+                                      }
+                                    : row
+                                )
+                              )
+                            }
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Button
+                            size="sm"
+                            className="cursor-pointer hover:bg-blue-700 transition-colors"
+                            onClick={() =>
+                              handleStatusChange(
+                                b.id,
+                                b.status,
+                                b.time_slot
+                              )
+                            }
+                          >
+                            Save
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -570,7 +691,7 @@ export default function AdminDashboardPage() {
                       )}
                       <div className="mt-2 flex gap-4 text-sm">
                         <span className="font-medium text-green-600">
-                          Rs{s.price}
+                          ₹{s.price}
                         </span>
                         {s.duration_minutes && (
                           <span className="flex items-center gap-1 text-gray-500">
@@ -584,6 +705,7 @@ export default function AdminDashboardPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="cursor-pointer hover:bg-gray-100 transition-colors"
                         onClick={() => handleToggleService(s.id, s.is_active)}
                       >
                         {s.is_active ? "Deactivate" : "Activate"}
@@ -592,7 +714,7 @@ export default function AdminDashboardPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDeleteService(s.id)}
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer transition-colors"
                       >
                         Delete
                       </Button>
@@ -638,7 +760,7 @@ export default function AdminDashboardPage() {
                   
                   <div className="grid grid-cols-2 gap-3">
                     <Input
-                      placeholder="Price (Rs)"
+                      placeholder="Price (₹)"
                       type="number"
                       step="0.01"
                       value={newService.price}
@@ -665,7 +787,7 @@ export default function AdminDashboardPage() {
                     />
                   </div>
                   
-                  <Button type="submit" className="w-full gap-2">
+                  <Button type="submit" className="w-full gap-2 cursor-pointer hover:bg-blue-700 transition-colors">
                     <Plus className="h-4 w-4" />
                     Add Service
                   </Button>

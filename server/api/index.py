@@ -15,6 +15,7 @@ import tempfile
 
 load_dotenv()
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 app = Flask(__name__)
 
@@ -296,13 +297,20 @@ def send_booking_request_email(booking: 'Booking'):
 
 
 def send_booking_status_email(booking: 'Booking'):
-    """Notify customer when booking is confirmed or cancelled, including time slot if confirmed."""
+    """Notify customer when booking is confirmed or cancelled. NO EMAIL for completed status."""
     try:
+        # Don't send email if status is 'completed' - that's internal only
+        if booking.status == 'completed':
+            print(f"ℹ️ Booking {booking.id} marked as completed (no email sent)")
+            return True
+            
         subject = "Your appointment has been updated"
         if booking.status == 'confirmed':
-            subject = "Your appointment is confirmed"
+            subject = "✅ Your appointment is confirmed!"
         elif booking.status == 'cancelled':
-            subject = "Your appointment has been cancelled"
+            subject = "❌ Your appointment has been cancelled"
+        elif booking.status == 'pending':
+            subject = "⏳ Your appointment status updated"
 
         time_info = f"<p><strong>Time slot:</strong> {booking.time_slot}</p>" if booking.time_slot else ""
 
@@ -310,14 +318,46 @@ def send_booking_status_email(booking: 'Booking'):
             subject=subject,
             recipients=[booking.customer_email],
             html=f"""
-            <h2>Hi {booking.customer_name},</h2>
-            <p>Your booking status has been updated to: <strong>{booking.status.title()}</strong></p>
-            <p><strong>Service:</strong> {booking.service.name if booking.service else ''}</p>
-            <p><strong>Date:</strong> {booking.preferred_date}</p>
-            {time_info}
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+                              color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+                    .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
+                    .status-badge {{ display: inline-block; padding: 8px 16px; border-radius: 20px; 
+                                     font-weight: bold; margin: 10px 0; }}
+                    .confirmed {{ background: #10b981; color: white; }}
+                    .cancelled {{ background: #ef4444; color: white; }}
+                    .pending {{ background: #f59e0b; color: white; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Appointment Update</h1>
+                    </div>
+                    <div class="content">
+                        <h2>Hi {booking.customer_name},</h2>
+                        <p>Your appointment status has been updated:</p>
+                        <p><span class="status-badge {booking.status}">{booking.status.upper()}</span></p>
+                        <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                        <p><strong>Service:</strong> {booking.service.name if booking.service else 'N/A'}</p>
+                        <p><strong>Date:</strong> {booking.preferred_date}</p>
+                        {time_info}
+                        <p style="margin-top: 20px; color: #666; font-size: 14px;">
+                            If you have any questions, please contact us.
+                        </p>
+                    </div>
+                </div>
+            </body>
+            </html>
             """
         )
         mail.send(msg)
+        print(f"✅ Status email sent to {booking.customer_email} for booking {booking.id}")
         return True
     except Exception as e:
         print(f"❌ Booking Status Email Error: {str(e)}")
