@@ -5,7 +5,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Button } from "../../components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://dentist-serverless-tw1a.vercel.app";
 
 export default function BookPage() {
   const [step, setStep] = useState(1);
@@ -82,7 +82,7 @@ export default function BookPage() {
             <span className="h-2 w-2 rounded-full bg-blue-600 mr-2 animate-pulse"></span>
             <span className="text-sm font-medium text-blue-700">Online Booking</span>
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent sm:text-5xl">
+          <h1 className="text-4xl font-bold bg-gradient-to-r text-blue-600 bg-clip-text text-transparent sm:text-5xl">
             Book Your Appointment
           </h1>
           <p className="mt-4 text-lg text-gray-600">Schedule your visit in just a few simple steps</p>
@@ -205,7 +205,7 @@ export default function BookPage() {
                   <select id="service" className="mt-2 flex h-12 w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-300 hover:border-blue-300 shadow-sm" value={form.service_id} onChange={handleChange("service_id")} disabled={loadingServices} required>
                     <option value="">{loadingServices ? "Loading services..." : "Select a service"}</option>
                     {services.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}{s.price ? ` - Rs${s.price.toFixed ? s.price.toFixed(0) : s.price}` : ""}</option>
+                      <option key={s.id} value={s.id}>{s.name}{s.price ? ` - ₹${s.price.toFixed ? s.price.toFixed(0) : s.price}` : ""}</option>
                     ))}
                   </select>
                 </div>
