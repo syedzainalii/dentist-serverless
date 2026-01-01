@@ -148,7 +148,10 @@ export default function AdminDashboardPage() {
 
   async function handleStatusChange(id, status, time_slot) {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      alert('Authentication required. Please log in again.');
+      return;
+    }
 
     // Validate time slot for confirmed bookings
     if (status === 'confirmed' && (!time_slot || time_slot.trim() === '')) {
@@ -157,21 +160,36 @@ export default function AdminDashboardPage() {
     }
 
     try {
+      console.log('Sending update:', { id, status, time_slot });
+      
       const res = await fetch(`${API_BASE}/api/bookings/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status, time_slot }),
+        body: JSON.stringify({ 
+          status: status.toLowerCase().trim(), 
+          time_slot: time_slot || null 
+        }),
       });
 
+      console.log('Response status:', res.status);
+      
       const data = await res.json();
-      if (!res.ok || !data.success) {
+      console.log('Response data:', data);
+      
+      if (!res.ok) {
+        alert(data.message || `Server error: ${res.status}`);
+        return;
+      }
+      
+      if (!data.success) {
         alert(data.message || "Failed to update booking");
         return;
       }
 
+      // Update local state with the returned booking data
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? data.booking : b))
       );
@@ -188,7 +206,7 @@ export default function AdminDashboardPage() {
       }
     } catch (err) {
       console.error('Error updating booking:', err);
-      alert('Failed to update booking. Please try again.');
+      alert(`Failed to update booking: ${err.message}`);
     }
   }
 
