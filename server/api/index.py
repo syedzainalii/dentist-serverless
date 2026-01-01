@@ -36,11 +36,10 @@ def handle_options():
 # CONFIGURATION
 # ============================================================================
 
-
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://dentist-serverless.vercel.app" # EXACTLY as it appears in browser
+    "https://dentist-serverless.vercel.app"  # EXACTLY as it appears in browser
 ]
 
 # Apply CORS to the app immediately after defining the app object
@@ -48,7 +47,7 @@ CORS(app,
      origins=ALLOWED_ORIGINS,
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])  # PATCH added here
 
 # ============================================================================
 # 2. APP SETTINGS & DATABASE
@@ -84,7 +83,7 @@ def handle_options():
         origin = request.headers.get('Origin')
         if origin in ALLOWED_ORIGINS:
             response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'  # PATCH added here
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
