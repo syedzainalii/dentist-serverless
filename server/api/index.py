@@ -39,7 +39,7 @@ def handle_options():
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://dentist-serverless.vercel.app"  # EXACTLY as it appears in browser
+    "https://dentist-serverless.vercel.app"
 ]
 
 # Apply CORS to the app immediately after defining the app object
@@ -47,14 +47,27 @@ CORS(app,
      origins=ALLOWED_ORIGINS,
      supports_credentials=True,
      allow_headers=["Content-Type", "Authorization"],
-     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])  # PATCH added here
+     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+
+# Single unified preflight handler
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        origin = request.headers.get('Origin')
+        if origin in ALLOWED_ORIGINS:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
 # ============================================================================
 # 2. APP SETTINGS & DATABASE
 # ============================================================================
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-super-secret-local-key')
 
-# Database logic (Keep your existing logic, it is correct)
+# Database logic
 raw_db_url = os.environ.get('POSTGRES_URL')
 if raw_db_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = raw_db_url.replace("postgres://", "postgresql://", 1)
@@ -64,7 +77,6 @@ else:
 # ============================================================================
 # 3. FILE SYSTEM FIX (Vercel Read-Only)
 # ============================================================================
-# Use /tmp for all write operations on Vercel
 UPLOAD_FOLDER = '/tmp/uploads/content'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -75,19 +87,6 @@ def allowed_file(filename):
 
 db = SQLAlchemy(app)
 mail = Mail(app)
-
-@app.before_request
-def handle_options():
-    if request.method == 'OPTIONS':
-        response = app.make_default_options_response()
-        origin = request.headers.get('Origin')
-        if origin in ALLOWED_ORIGINS:
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'  # PATCH added here
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
-    
 # ============================================================================
 # DATABASE MODELS
 # ============================================================================
