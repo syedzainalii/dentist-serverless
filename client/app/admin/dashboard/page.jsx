@@ -162,7 +162,8 @@ export default function AdminDashboardPage() {
     try {
       console.log('Sending update:', { id, status, time_slot });
       
-      const res = await fetch(`${API_BASE}/api/bookings/${id}/status`, {
+      // Try the specific status endpoint first
+      let res = await fetch(`${API_BASE}/api/bookings/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -173,6 +174,22 @@ export default function AdminDashboardPage() {
           time_slot: time_slot || null 
         }),
       });
+
+      // If that fails, try the general update endpoint with PUT
+      if (!res.ok && res.status === 404) {
+        console.log('Status endpoint not found, trying general update endpoint');
+        res = await fetch(`${API_BASE}/api/bookings/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ 
+            status: status.toLowerCase().trim(), 
+            time_slot: time_slot || null 
+          }),
+        });
+      }
 
       console.log('Response status:', res.status);
       

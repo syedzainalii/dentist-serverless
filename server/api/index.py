@@ -1431,7 +1431,7 @@ def dashboard_charts(current_user):
 # UPDATE BOOKING STATUS (Admin / Moderator)
 # =====================================================================
 
-@app.route('/api/bookings/<int:booking_id>/status', methods=['PATCH'])
+@app.route('/api/bookings/<int:booking_id>/status', methods=['PATCH', 'PUT'])
 @role_required(['admin', 'moderator'])
 def update_booking_status(current_user, booking_id):
     """
@@ -1466,7 +1466,7 @@ def update_booking_status(current_user, booking_id):
         # Optional: allow updating time_slot when confirming
         time_slot = data.get('time_slot')
         if time_slot is not None:
-            booking.time_slot = time_slot.strip() or None
+            booking.time_slot = time_slot.strip() if time_slot else None
 
         # If confirming, ensure we have a time slot
         if new_status == 'confirmed' and not booking.time_slot:
@@ -1479,8 +1479,9 @@ def update_booking_status(current_user, booking_id):
         booking.updated_at = datetime.utcnow()
         db.session.commit()
 
-        # Send notification email
-        send_booking_status_email(booking)
+        # Send notification email (only for confirmed/cancelled, NOT completed)
+        if new_status in ['confirmed', 'cancelled']:
+            send_booking_status_email(booking)
 
         return jsonify({
             'success': True,
