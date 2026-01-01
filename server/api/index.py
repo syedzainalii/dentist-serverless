@@ -1427,74 +1427,73 @@ def dashboard_charts(current_user):
         print(f"❌ Dashboard Charts Error: {str(e)}")
         return jsonify({'success': False, 'message': 'Failed to load chart data'}), 500
     
-# =====================================================================
-# UPDATE BOOKING STATUS (Admin / Moderator)
-# =====================================================================
-
-@app.route('/api/bookings/<int:booking_id>/status', methods=['PATCH', 'PUT'])
+@app.route('/api/bookings/<int:booking_id>', methods=['PUT'])
 @role_required(['admin', 'moderator'])
-def update_booking_status(current_user, booking_id):
-    """
-    Update booking status
-    Allowed statuses: pending, confirmed, completed, cancelled
-    """
+def update_booking(current_user, booking_id):
+    """Update booking details"""
     try:
         data = request.get_json() or {}
-
-        if 'status' not in data:
-            return jsonify({
-                'success': False,
-                'message': 'Status is required'
-            }), 400
-
-        new_status = data['status'].strip().lower()
-
-        ALLOWED_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled']
-        if new_status not in ALLOWED_STATUSES:
-            return jsonify({
-                'success': False,
-                'message': f'Invalid status. Allowed: {", ".join(ALLOWED_STATUSES)}'
-            }), 400
-
         booking = Booking.query.get(booking_id)
+        
         if not booking:
             return jsonify({
                 'success': False,
                 'message': 'Booking not found'
             }), 404
 
-        # Optional: allow updating time_slot when confirming
-        time_slot = data.get('time_slot')
-        if time_slot is not None:
-            booking.time_slot = time_slot.strip() if time_slot else None
+        # Store old status to check if it changed
+        old_status = booking.status
 
-        # If confirming, ensure we have a time slot
-        if new_status == 'confirmed' and not booking.time_slot:
+        # Update fields if provided
+        if 'customer_name' in data:
+            booking.customer_name = data['customer_name']
+        if 'customer_email' in data:
+            booking.customer_email = data['customer_email']
+        if 'customer_phone' in data:
+            booking.customer_phone = data['customer_phone']
+        if 'service_id' in data:
+            booking.service_id = data['service_id']
+        if 'preferred_date' in data:
+            booking.preferred_date = data['preferred_date']
+        if 'time_slot' in data:
+            booking.time_slot = data['time_slot']
+        if 'status' in data:
+            new_status = data['status'].lower().strip()
+            if new_status not in ['pending', 'confirmed', 'completed', 'cancelled']:
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid status'
+                }), 400
+            booking.status = new_status
+        if 'notes' in data:
+            booking.notes = data['notes']
+
+        # Validation: confirmed bookings need time slot
+        if booking.status == 'confirmed' and not booking.time_slot:
             return jsonify({
                 'success': False,
-                'message': 'Time slot is required when confirming a booking'
+                'message': 'Time slot required for confirmed bookings'
             }), 400
 
-        booking.status = new_status
         booking.updated_at = datetime.utcnow()
         db.session.commit()
 
-        # Send notification email (only for confirmed/cancelled, NOT completed)
-        if new_status in ['confirmed', 'cancelled']:
+        # Send email if status changed to confirmed or cancelled (NOT for completed)
+        if old_status != booking.status and booking.status in ['confirmed', 'cancelled']:
             send_booking_status_email(booking)
 
         return jsonify({
             'success': True,
-            'message': f'Booking status updated to {new_status}',
+            'message': 'Booking updated successfully',
             'booking': booking.to_dict()
         }), 200
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Update Booking Status Error: {str(e)}")
+        print(f"❌ Update Booking Error: {str(e)}")
         return jsonify({
             'success': False,
-            'message': 'Failed to update booking status'
+            'message': 'Failed to update booking'
         }), 500
 
 
