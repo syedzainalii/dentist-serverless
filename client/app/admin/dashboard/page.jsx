@@ -113,9 +113,7 @@ export default function AdminDashboardPage() {
     
     let newTimeSlot = currentTimeSlot;
     
-    // Check if it contains AM/PM
     if (currentTimeSlot.includes("AM") || currentTimeSlot.includes("PM")) {
-      // Convert to 24-hour format
       const match = currentTimeSlot.match(/(\d+):(\d+)\s*(AM|PM)/i);
       if (match) {
         let [, hours, minutes, period] = match;
@@ -125,7 +123,6 @@ export default function AdminDashboardPage() {
         newTimeSlot = `${hours.toString().padStart(2, '0')}:${minutes}`;
       }
     } else {
-      // Convert to 12-hour format with AM/PM
       const match = currentTimeSlot.match(/(\d+):(\d+)/);
       if (match) {
         let [, hours, minutes] = match;
@@ -153,77 +150,78 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    // Validate time slot for confirmed bookings
     if (status === 'confirmed' && (!time_slot || time_slot.trim() === '')) {
       alert('Please set a time slot before confirming the booking');
       return;
     }
 
+    const currentBooking = bookings.find(b => b.id === id);
+    if (!currentBooking) {
+      alert('Booking not found');
+      return;
+    }
+
     try {
-      console.log('Sending update:', { id, status, time_slot });
+      console.log('=== BOOKING UPDATE ===');
+      console.log('URL:', `${API_BASE}/api/bookings/${id}`);
+      console.log('Method: PUT');
       
-      // Try the specific status endpoint first
-      let res = await fetch(`${API_BASE}/api/bookings/${id}/status`, {
-        method: "PATCH",
+      const requestBody = {
+        customer_name: currentBooking.customer_name,
+        customer_email: currentBooking.customer_email,
+        customer_phone: currentBooking.customer_phone,
+        service_id: currentBooking.service_id,
+        preferred_date: currentBooking.preferred_date,
+        status: status.toLowerCase().trim(),
+        time_slot: time_slot || null,
+        notes: currentBooking.notes || ''
+      };
+      
+      console.log('Request Body:', requestBody);
+
+      const res = await fetch(`${API_BASE}/api/bookings/${id}`, {
+        method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ 
-          status: status.toLowerCase().trim(), 
-          time_slot: time_slot || null 
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      // If that fails, try the general update endpoint with PUT
-      if (!res.ok && res.status === 404) {
-        console.log('Status endpoint not found, trying general update endpoint');
-        res = await fetch(`${API_BASE}/api/bookings/${id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ 
-            status: status.toLowerCase().trim(), 
-            time_slot: time_slot || null 
-          }),
-        });
-      }
+      console.log('Response Status:', res.status);
 
-      console.log('Response status:', res.status);
-      
-      const data = await res.json();
-      console.log('Response data:', data);
-      
       if (!res.ok) {
-        alert(data.message || `Server error: ${res.status}`);
+        const errorText = await res.text();
+        console.error('Error:', errorText);
+        alert(`Server error ${res.status}`);
         return;
       }
+      
+      const data = await res.json();
+      console.log('Success:', data);
       
       if (!data.success) {
         alert(data.message || "Failed to update booking");
         return;
       }
 
-      // Update local state with the returned booking data
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? data.booking : b))
       );
 
-      // Show success message based on status
-      if (status === 'confirmed') {
-        alert('✅ Booking confirmed! Confirmation email sent to patient.');
-      } else if (status === 'cancelled') {
-        alert('❌ Booking cancelled. Cancellation email sent to patient.');
-      } else if (status === 'completed') {
-        alert('✔️ Booking marked as completed (no email sent).');
-      } else if (status === 'pending') {
-        alert('⏳ Booking status updated to pending.');
-      }
+      const messages = {
+        'confirmed': '✅ Booking confirmed! Confirmation email sent to patient.',
+        'cancelled': '❌ Booking cancelled. Cancellation email sent to patient.',
+        'completed': '✔️ Booking marked as completed (no email sent).',
+        'pending': '⏳ Booking status updated to pending.'
+      };
+      
+      alert(messages[status] || 'Booking updated successfully');
+      
     } catch (err) {
-      console.error('Error updating booking:', err);
-      alert(`Failed to update booking: ${err.message}`);
+      console.error('=== ERROR ===');
+      console.error(err);
+      alert(`Network error: ${err.message}`);
     }
   }
 
@@ -325,7 +323,7 @@ export default function AdminDashboardPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
         <div className="rounded-lg bg-white p-8 shadow-sm">
           <p className="text-sm text-red-600">{error}</p>
         </div>
@@ -367,7 +365,6 @@ export default function AdminDashboardPage() {
     purple: "bg-purple-50 text-purple-600",
   };
 
-  // Filter bookings based on showCompleted toggle
   const filteredBookings = showCompleted 
     ? bookings.filter(b => b.status === 'completed')
     : bookings.filter(b => b.status !== 'completed');
@@ -378,51 +375,51 @@ export default function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b bg-white">
-        <div className="mx-auto max-w-7xl px-6 py-6">
-          <div className="flex items-center justify-between">
+      <div className="border-b bg-white sticky top-0 z-10 shadow-sm">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
                 Dashboard
               </h1>
-              <p className="mt-1 text-sm text-gray-600">
+              <p className="mt-1 text-xs sm:text-sm text-gray-600">
                 Welcome back! Here's what's happening today.
               </p>
             </div>
             <Button
               variant="outline"
-              className="gap-2 cursor-pointer hover:bg-gray-100 transition-colors"
+              className="gap-2 cursor-pointer hover:bg-gray-100 transition-colors text-sm"
               onClick={() => {
                 localStorage.removeItem("token");
                 router.push("/admin/login");
               }}
             >
               <LogOut className="h-4 w-4" />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl space-y-6 px-6 py-8">
+      <div className="mx-auto max-w-7xl space-y-4 sm:space-y-6 px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Stats Grid */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-6 grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
               <Card key={stat.title} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">
                         {stat.title}
                       </p>
-                      <p className="mt-2 text-3xl font-bold text-gray-900">
+                      <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-bold text-gray-900">
                         {stat.value}
                       </p>
                     </div>
-                    <div className={`rounded-full p-3 ${colorMap[stat.color]}`}>
-                      <Icon className="h-6 w-6" />
+                    <div className={`rounded-full p-2 sm:p-3 ${colorMap[stat.color]} flex-shrink-0 ml-2`}>
+                      <Icon className="h-4 w-4 sm:h-6 sm:w-6" />
                     </div>
                   </div>
                 </div>
@@ -432,28 +429,28 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Charts */}
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
           <Card className="border-0 shadow-sm lg:col-span-2">
-            <CardHeader className="border-b">
+            <CardHeader className="border-b p-4 sm:p-6">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-                <CardTitle className="text-lg">Bookings Trend</CardTitle>
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                <CardTitle className="text-base sm:text-lg">Bookings Trend</CardTitle>
               </div>
-              <CardDescription>Last 30 days performance</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Last 30 days performance</CardDescription>
             </CardHeader>
-            <div className="pt-6 px-6 pb-6">
-              <div className="h-72">
+            <div className="p-4 sm:pt-6 sm:px-6 sm:pb-6">
+              <div className="h-48 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={charts?.bookings_over_time ?? []}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis 
                       dataKey="date" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 10 }}
                       stroke="#888"
                     />
                     <YAxis 
                       allowDecimals={false} 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 10 }}
                       stroke="#888"
                     />
                     <Tooltip 
@@ -461,15 +458,16 @@ export default function AdminDashboardPage() {
                         backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
+                        fontSize: '12px'
                       }}
                     />
                     <Line
                       type="monotone"
                       dataKey="bookings"
                       stroke="#3b82f6"
-                      strokeWidth={3}
-                      dot={{ fill: '#3b82f6', r: 4 }}
-                      activeDot={{ r: 6 }}
+                      strokeWidth={2}
+                      dot={{ fill: '#3b82f6', r: 3 }}
+                      activeDot={{ r: 5 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -478,38 +476,39 @@ export default function AdminDashboardPage() {
           </Card>
 
           <Card className="border-0 shadow-sm">
-            <CardHeader className="border-b">
+            <CardHeader className="border-b p-4 sm:p-6">
               <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-green-600" />
-                <CardTitle className="text-lg">Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                <CardTitle className="text-base sm:text-lg">Revenue</CardTitle>
               </div>
-              <CardDescription>By service type</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">By service type</CardDescription>
             </CardHeader>
-            <div className="pt-6 px-6 pb-6">
-              <div className="h-72">
+            <div className="p-4 sm:pt-6 sm:px-6 sm:pb-6">
+              <div className="h-48 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={charts?.revenue_by_service ?? []}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis 
                       dataKey="service_name" 
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 9 }}
                       angle={-45}
                       textAnchor="end"
-                      height={80}
+                      height={60}
                       stroke="#888"
                     />
-                    <YAxis tick={{ fontSize: 12 }} stroke="#888" />
+                    <YAxis tick={{ fontSize: 10 }} stroke="#888" />
                     <Tooltip 
                       contentStyle={{
                         backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
+                        fontSize: '12px'
                       }}
                     />
                     <Bar 
                       dataKey="revenue" 
                       fill="#10b981" 
-                      radius={[8, 8, 0, 0]}
+                      radius={[6, 6, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -520,16 +519,16 @@ export default function AdminDashboardPage() {
 
         {/* Bookings Table */}
         <Card className="border-0 shadow-sm">
-          <CardHeader className="border-b">
-            <div className="flex items-center justify-between">
+          <CardHeader className="border-b p-4 sm:p-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-blue-600" />
-                  <CardTitle className="text-lg">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  <CardTitle className="text-base sm:text-lg">
                     {showCompleted ? 'Completed Bookings' : 'Active Bookings'}
                   </CardTitle>
                 </div>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm mt-1">
                   {showCompleted 
                     ? `Viewing ${completedBookingsCount} completed appointment${completedBookingsCount !== 1 ? 's' : ''}`
                     : `Managing ${activeBookingsCount} active appointment${activeBookingsCount !== 1 ? 's' : ''}`
@@ -538,18 +537,21 @@ export default function AdminDashboardPage() {
               </div>
               <Button
                 variant="outline"
-                className="gap-2 cursor-pointer hover:bg-gray-100 transition-colors"
+                size="sm"
+                className="gap-2 cursor-pointer hover:bg-gray-100 transition-colors text-xs sm:text-sm"
                 onClick={() => setShowCompleted(!showCompleted)}
               >
                 {showCompleted ? (
                   <>
-                    <EyeOff className="h-4 w-4" />
-                    Show Active
+                    <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Show Active</span>
+                    <span className="sm:hidden">Active</span>
                   </>
                 ) : (
                   <>
-                    <Eye className="h-4 w-4" />
-                    Show Completed ({completedBookingsCount})
+                    <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Show Completed ({completedBookingsCount})</span>
+                    <span className="sm:hidden">Completed ({completedBookingsCount})</span>
                   </>
                 )}
               </Button>
@@ -557,31 +559,31 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <div className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead>
                   <tr className="border-b bg-gray-50">
-                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                       Patient
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                       Service
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                       Date
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                       Time
                     </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                       Status
                     </th>
-                    <th className="px-6 py-4"></th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {filteredBookings.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan="6" className="px-3 sm:px-6 py-8 sm:py-12 text-center text-gray-500 text-sm">
                         {showCompleted 
                           ? 'No completed bookings yet'
                           : 'No active bookings to display'
@@ -591,32 +593,32 @@ export default function AdminDashboardPage() {
                   ) : (
                     filteredBookings.map((b) => (
                       <tr key={b.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-blue-100 text-xs sm:text-sm font-semibold text-blue-600 flex-shrink-0">
                               {b.customer_name.charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                              <div className="font-medium text-gray-900">
+                            <div className="min-w-0">
+                              <div className="font-medium text-gray-900 text-xs sm:text-sm truncate">
                                 {b.customer_name}
                               </div>
-                              <div className="flex items-center gap-1 text-xs text-gray-500">
-                                <Mail className="h-3 w-3" />
-                                {b.customer_email}
+                              <div className="flex items-center gap-1 text-xs text-gray-500 truncate">
+                                <Mail className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">{b.customer_email}</span>
                               </div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900">
                           {b.service_name}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 whitespace-nowrap">
                           {b.preferred_date}
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
+                          <div className="flex items-center gap-1 sm:gap-2">
                             <Input
-                              className="h-9 w-32 border-gray-200"
+                              className="h-8 sm:h-9 w-24 sm:w-32 border-gray-200 text-xs sm:text-sm"
                               placeholder="Set time"
                               value={b.time_slot || ""}
                               onChange={(e) =>
@@ -634,16 +636,16 @@ export default function AdminDashboardPage() {
                             />
                             <button
                               onClick={() => toggleTimeFormat(b.id, b.time_slot)}
-                              className="p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                              className="p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex-shrink-0"
                               title="Toggle AM/PM format"
                             >
-                              <RefreshCw className="h-4 w-4 text-gray-600" />
+                              <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 text-gray-600" />
                             </button>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
                           <select
-                            className="h-9 rounded-lg border border-gray-200 px-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
+                            className="h-8 sm:h-9 rounded-lg border border-gray-200 px-2 sm:px-3 text-xs sm:text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer hover:bg-gray-50 transition-colors"
                             value={b.status}
                             onChange={(e) =>
                               setBookings((prev) =>
@@ -664,10 +666,10 @@ export default function AdminDashboardPage() {
                             <option value="cancelled">Cancelled</option>
                           </select>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4">
                           <Button
                             size="sm"
-                            className="cursor-pointer hover:bg-blue-700 transition-colors"
+                            className="cursor-pointer hover:bg-blue-700 transition-colors text-xs sm:text-sm h-8 sm:h-9"
                             onClick={() =>
                               handleStatusChange(
                                 b.id,
@@ -690,57 +692,57 @@ export default function AdminDashboardPage() {
 
         {/* Services Management */}
         <Card className="border-0 shadow-sm">
-          <CardHeader className="border-b">
+          <CardHeader className="border-b p-4 sm:p-6">
             <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-purple-600" />
-              <CardTitle className="text-lg">Services Management</CardTitle>
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+              <CardTitle className="text-base sm:text-lg">Services Management</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm mt-1">
               Add, edit or deactivate services that appear on the public site
             </CardDescription>
           </CardHeader>
-          <div className="p-6">
-            <div className="space-y-4">
+          <div className="p-4 sm:p-6">
+            <div className="space-y-3 sm:space-y-4">
               {/* Services List */}
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {services.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:p-4 transition-shadow hover:shadow-md"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold text-gray-900">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base">
                           {s.name}
                         </span>
                         {!s.is_active && (
-                          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                          <span className="rounded-full bg-gray-100 px-2 sm:px-3 py-0.5 sm:py-1 text-xs font-medium text-gray-600">
                             Inactive
                           </span>
                         )}
                       </div>
                       {s.description && (
-                        <p className="mt-1 text-sm text-gray-600">
+                        <p className="mt-1 text-xs sm:text-sm text-gray-600 line-clamp-2">
                           {s.description}
                         </p>
                       )}
-                      <div className="mt-2 flex gap-4 text-sm">
+                      <div className="mt-2 flex gap-3 sm:gap-4 text-xs sm:text-sm flex-wrap">
                         <span className="font-medium text-green-600">
                           ₹{s.price}
                         </span>
                         {s.duration_minutes && (
                           <span className="flex items-center gap-1 text-gray-500">
-                            <Clock className="h-4 w-4" />
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                             {s.duration_minutes} min
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 sm:flex-shrink-0">
                       <Button
                         size="sm"
                         variant="outline"
-                        className="cursor-pointer hover:bg-gray-100 transition-colors"
+                        className="cursor-pointer hover:bg-gray-100 transition-colors text-xs sm:text-sm flex-1 sm:flex-initial"
                         onClick={() => handleToggleService(s.id, s.is_active)}
                       >
                         {s.is_active ? "Deactivate" : "Activate"}
@@ -749,7 +751,7 @@ export default function AdminDashboardPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleDeleteService(s.id)}
-                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer transition-colors"
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer transition-colors text-xs sm:text-sm flex-1 sm:flex-initial"
                       >
                         Delete
                       </Button>
@@ -758,80 +760,79 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
 
-              {/* Add Service Form */}
-              <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-6">
-                <form onSubmit={handleCreateService} className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-5 w-5 text-gray-600" />
-                    <Label className="text-base font-semibold text-gray-900">
-                      Add New Service
-                    </Label>
-                  </div>
-                  
-                  <Input
-                    placeholder="Service Name (e.g., Teeth Cleaning)"
-                    value={newService.name}
-                    onChange={(e) =>
-                      setNewService((p) => ({
-                        ...p,
-                        name: e.target.value,
-                      }))
-                    }
-                    className="border-gray-200"
-                    required
-                  />
-                  
-                  <Input
-                    placeholder="Description (optional)"
-                    value={newService.description}
-                    onChange={(e) =>
-                      setNewService((p) => ({
-                        ...p,
-                        description: e.target.value,
-                      }))
-                    }
-                    className="border-gray-200"
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      placeholder="Price (₹)"
-                      type="number"
-                      step="0.01"
-                      value={newService.price}
-                      onChange={(e) =>
-                        setNewService((p) => ({
-                          ...p,
-                          price: e.target.value,
-                        }))
-                      }
-                      className="border-gray-200"
-                      required
-                    />
-                    <Input
-                      placeholder="Duration (minutes)"
-                      type="number"
-                      value={newService.duration_minutes}
-                      onChange={(e) =>
-                        setNewService((p) => ({
-                          ...p,
-                          duration_minutes: e.target.value,
-                        }))
-                      }
-                      className="border-gray-200"
-                    />
-                  </div>
-                  
-                  <Button type="submit" className="w-full gap-2 cursor-pointer hover:bg-blue-700 transition-colors">
-                    <Plus className="h-4 w-4" />
-                    Add Service
-                  </Button>
-                </form>
+              {/* AdService Form */}
+
+              <div className="rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-4 sm:p-6">
+                <form onSubmit={handleCreateService} className="space-y-3 sm:space-y-4">
+                <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+                <Label className="text-sm sm:text-base font-semibold text-gray-900">
+                Add New Service
+                </Label>
               </div>
-            </div>
+              <Input
+                placeholder="Service Name (e.g., Teeth Cleaning)"
+                value={newService.name}
+                onChange={(e) =>
+                  setNewService((p) => ({
+                    ...p,
+                    name: e.target.value,
+                  }))
+                }
+                className="border-gray-200 text-sm sm:text-base"
+                required
+              />
+              
+              <Input
+                placeholder="Description (optional)"
+                value={newService.description}
+                onChange={(e) =>
+                  setNewService((p) => ({
+                    ...p,
+                    description: e.target.value,
+                  }))
+                }
+                className="border-gray-200 text-sm sm:text-base"
+              />
+              
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <Input
+                  placeholder="Price (₹)"
+                  type="number"
+                  step="0.01"
+                  value={newService.price}
+                  onChange={(e) =>
+                    setNewService((p) => ({
+                      ...p,
+                      price: e.target.value,
+                    }))
+                  }
+                  className="border-gray-200 text-sm sm:text-base"
+                  required
+                />
+                <Input
+                  placeholder="Duration (min)"
+                  type="number"
+                  value={newService.duration_minutes}
+                  onChange={(e) =>
+                    setNewService((p) => ({
+                      ...p,
+                      duration_minutes: e.target.value,
+                    }))
+                  }
+                  className="border-gray-200 text-sm sm:text-base"
+                />
+              </div>
+              
+              <Button type="submit" className="w-full gap-2 cursor-pointer hover:bg-blue-700 transition-colors text-sm sm:text-base">
+                <Plus className="h-4 w-4" />
+                Add Service
+              </Button>
+            </form>
           </div>
-        </Card>
+        </div>
       </div>
-    </div>
-  );
+    </Card>
+  </div>
+</div>);
 }
