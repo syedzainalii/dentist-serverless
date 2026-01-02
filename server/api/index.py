@@ -87,6 +87,18 @@ def allowed_file(filename):
 
 db = SQLAlchemy(app)
 mail = Mail(app)
+
+# ============================================================================
+# 4. Email Configiration
+# ============================================================================
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME'))
+
 # ============================================================================
 # DATABASE MODELS
 # ============================================================================
@@ -301,6 +313,11 @@ def send_booking_status_email(booking: 'Booking'):
         if booking.status == 'completed':
             print(f"ℹ️ Booking {booking.id} marked as completed (no email sent)")
             return True
+        
+        # Check if mail is configured
+        if not app.config.get('MAIL_USERNAME'):
+            print(f"⚠️ Email not configured. Skipping email for booking {booking.id}")
+            return False
             
         subject = "Your appointment has been updated"
         if booking.status == 'confirmed':
@@ -354,11 +371,15 @@ def send_booking_status_email(booking: 'Booking'):
             </html>
             """
         )
+        
         mail.send(msg)
-        print(f"✅ Status email sent to {booking.customer_email} for booking {booking.id}")
+        print(f"✅ Status email sent to {booking.customer_email} for booking {booking.id} (status: {booking.status})")
         return True
+        
     except Exception as e:
         print(f"❌ Booking Status Email Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def generate_token(user):
